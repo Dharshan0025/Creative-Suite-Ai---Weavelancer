@@ -1,0 +1,7 @@
+{
+  "name": "Creative Suite AI",
+  "description": "A multi-stage AI-powered creative suite that takes you from initial idea generation (Ideaspark), through visual design and refinement (Workbench), to final application in virtual try-on (FitCheck) or scene composition (Home Canvas).",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
