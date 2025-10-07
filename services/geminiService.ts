@@ -97,7 +97,7 @@ export const generateInitialImages = async (prompt: string, negativePrompt?: str
       model: 'imagen-4.0-generate-001',
       prompt: fullPrompt,
       config: {
-        numberOfImages: 3,
+        numberOfImages: 1,
         outputMimeType: 'image/png',
         aspectRatio: '1:1',
       },

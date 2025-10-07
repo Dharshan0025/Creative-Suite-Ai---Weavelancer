@@ -3,7 +3,7 @@ import { generateModelImage } from '../../../services/geminiService';
 import Spinner from '../../../components/Spinner';
 
 interface StartScreenProps {
-  onModelFinalized: (url: string) => void;
+  onModelFinalized: (url: string, sourceFile: File) => void;
 }
 
 export const StartScreen: React.FC<StartScreenProps> = ({ onModelFinalized }) => {
@@ -34,7 +34,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onModelFinalized }) =>
     setError(null);
     try {
       const modelImageUrl = await generateModelImage(imageFile);
-      onModelFinalized(modelImageUrl);
+      onModelFinalized(modelImageUrl, imageFile);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
     } finally {
@@ -56,7 +56,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onModelFinalized }) =>
     <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-lg animate-fade-in">
       <div className="text-center">
         <h1 className="text-2xl font-bold font-serif tracking-wide text-gray-800">Create Your Model</h1>
-        <p className="text-gray-500 mt-2">Upload a full-body photo of yourself to begin.</p>
+        <p className="text-gray-500 mt-2">Upload a full-body photo to begin.</p>
       </div>
       
       <div className="mt-6">

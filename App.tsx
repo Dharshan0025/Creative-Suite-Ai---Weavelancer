@@ -161,7 +161,7 @@ const App: React.FC = () => {
         </AnimatePresence>
       </div>
       <footer className="w-full text-center py-4 text-xs text-gray-400">
-        Creative Suite AI - Powered by Google Gemini
+        Creative Suite AI - Powered by Weavelancer
       </footer>
     </div>
   );

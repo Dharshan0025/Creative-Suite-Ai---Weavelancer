@@ -66,6 +66,12 @@ export interface WardrobeItem {
   url: string;
 }
 
+export interface Model {
+  id: string;
+  name: string;
+  url: string;
+}
+
 export interface OutfitLayer {
   garment: WardrobeItem | null;
   poseImages: { [poseInstruction: string]: string };

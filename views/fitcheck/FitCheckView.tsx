@@ -4,11 +4,12 @@ import { StartScreen } from './components/StartScreen';
 import { Canvas } from './components/Canvas';
 import { WardrobePanel } from './components/WardrobeModal';
 import { OutfitStack } from './components/OutfitStack';
-import { generateVirtualTryOnImage, generatePoseVariation, generateGarmentFromPrompt } from '../../services/geminiService';
-import { OutfitLayer, WardrobeItem } from '../../types';
+import { generateModelImage, generateVirtualTryOnImage, generatePoseVariation, generateGarmentFromPrompt } from '../../services/geminiService';
+import { OutfitLayer, WardrobeItem, Model } from '../../types';
 import { ChevronDownIcon, ChevronUpIcon } from '../../components/icons';
 import { POSE_INSTRUCTIONS } from '../../constants';
 import { useImageCache } from '../../hooks/useImageCache';
+import { ModelPanel } from './components/ModelPanel';
 
 // Helper to convert a data URL string to a File object asynchronously
 const dataURLtoFile = async (dataurl: string, filename: string): Promise<File> => {
@@ -23,8 +24,22 @@ interface FitCheckViewProps {
     onRequestRedesign: (imageUrl: string, onComplete: (newImageUrl: string) => void) => void;
 }
 
+const TabButton: React.FC<{ name: string; active: boolean; onClick: () => void; }> = ({ name, active, onClick }) => (
+    <button
+      onClick={onClick}
+      className={`flex-1 py-2 text-sm font-semibold transition-colors ${
+        active
+          ? 'text-indigo-600 border-b-2 border-indigo-600'
+          : 'text-gray-500 hover:text-gray-800'
+      }`}
+    >
+      {name}
+    </button>
+  );
+
 export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRequestRedesign }) => {
-  const [modelImageUrl, setModelImageUrl] = useState<string | null>(null);
+  const [savedModels, setSavedModels] = useState<Model[]>([]);
+  const [activeModelId, setActiveModelId] = useState<string | null>(null);
   const [outfitHistory, setOutfitHistory] = useState<OutfitLayer[]>([]);
   const [currentOutfitIndex, setCurrentOutfitIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +47,7 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
   const [error, setError] = useState<string | null>(null);
   const [currentPoseIndex, setCurrentPoseIndex] = useState(0);
   const [isSheetCollapsed, setIsSheetCollapsed] = useState(true);
+  const [activeTab, setActiveTab] = useState<'wardrobe' | 'models'>('wardrobe');
   
   const imageCache = useImageCache();
   
@@ -43,6 +59,11 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
       url: designImageUrl,
     },
   ]);
+
+  const modelImageUrl = useMemo(() => {
+    if (!activeModelId) return null;
+    return savedModels.find(m => m.id === activeModelId)?.url || null;
+  }, [activeModelId, savedModels]);
 
   const activeOutfitLayers = useMemo(() => 
     outfitHistory.slice(0, currentOutfitIndex + 1), 
@@ -63,24 +84,31 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
     return currentLayer.poseImages[poseInstruction] ?? Object.values(currentLayer.poseImages)[0];
   }, [outfitHistory, currentOutfitIndex, currentPoseIndex, modelImageUrl]);
   
-  const handleModelFinalized = (url: string) => {
-    setModelImageUrl(url);
-    // Start with only the base model. User will add garments manually.
+  const handleModelGenerated = (url: string, sourceFile: File) => {
+    const newModel: Model = {
+      id: `model-${Date.now()}`,
+      name: sourceFile.name,
+      url: url,
+    };
+
+    setSavedModels(prev => [...prev, newModel]);
+    setActiveModelId(newModel.id);
     setOutfitHistory([{
       garment: null,
       poseImages: { [POSE_INSTRUCTIONS[0]]: url }
     }]);
     setCurrentOutfitIndex(0);
+    setCurrentPoseIndex(0);
+    setActiveTab('wardrobe');
   };
   
   const handleGarmentSelect = useCallback(async (garmentFile: File, garmentInfo: WardrobeItem) => {
     if (!displayImageUrl || isLoading) return;
 
-    // Logic to jump to an existing layer if re-selected
     const existingLayerIndex = outfitHistory.findIndex(layer => layer.garment?.id === garmentInfo.id);
     if (existingLayerIndex > -1 && existingLayerIndex <= currentOutfitIndex) {
         setCurrentOutfitIndex(existingLayerIndex);
-        setCurrentPoseIndex(0); // Reset pose when jumping
+        setCurrentPoseIndex(0);
         return;
     }
 
@@ -98,12 +126,10 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
         poseImages: { [currentPoseInstruction]: newImageUrl } 
       };
 
-      // Add new layer after the current one, trimming any future history
       const newHistory = [...outfitHistory.slice(0, currentOutfitIndex + 1), newLayer];
       setOutfitHistory(newHistory);
       setCurrentOutfitIndex(newHistory.length - 1);
       
-      // Add to wardrobe if it's a new item
       setWardrobe(prev => {
         if (prev.find(item => item.id === garmentInfo.id)) return prev;
         return [...prev, garmentInfo];
@@ -141,7 +167,6 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
     }
   }, [handleGarmentSelect]);
 
-
   const handleRemoveLastGarment = () => {
     if (currentOutfitIndex > 0) {
       setCurrentOutfitIndex(prevIndex => prevIndex - 1);
@@ -155,13 +180,11 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
     const poseInstruction = POSE_INSTRUCTIONS[newIndex];
     const currentLayer = outfitHistory[currentOutfitIndex];
 
-    // If pose already exists, just switch to it
     if (currentLayer.poseImages[poseInstruction]) {
       setCurrentPoseIndex(newIndex);
       return;
     }
 
-    // Use the first available image in the current layer as the base for pose change
     const baseImageForPoseChange = Object.values(currentLayer.poseImages)[0];
     if (!baseImageForPoseChange) return;
     
@@ -209,11 +232,39 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
                 wItem.id === item.id ? { ...wItem, url: newImageUrl } : wItem
             )
         );
-        // If the redesigned item is currently worn, we might need to regenerate the outfit.
-        // For simplicity now, we'll just update the wardrobe. The user can re-apply it.
     };
     onRequestRedesign(item.url, onComplete);
   };
+
+  const handleImportModel = useCallback(async (file: File) => {
+    setIsLoading(true);
+    setLoadingMessage('Importing and preparing model...');
+    setError(null);
+
+    try {
+      const newModelUrl = await generateModelImage(file);
+      handleModelGenerated(newModelUrl, file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import model.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleSelectModel = useCallback((modelId: string) => {
+    if (modelId === activeModelId || isLoading) return;
+
+    setActiveModelId(modelId);
+    const model = savedModels.find(m => m.id === modelId);
+    if (model) {
+      setOutfitHistory([{
+        garment: null,
+        poseImages: { [POSE_INSTRUCTIONS[0]]: model.url }
+      }]);
+      setCurrentOutfitIndex(0);
+      setCurrentPoseIndex(0);
+    }
+  }, [activeModelId, isLoading, savedModels]);
 
   const viewVariants = {
     initial: { opacity: 0, y: 20 },
@@ -240,7 +291,7 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
              </p>
         </div>
       <AnimatePresence mode="wait">
-        {!modelImageUrl ? (
+        {savedModels.length === 0 ? (
           <motion.div
             key="start-screen"
             className="w-full max-w-lg mx-auto flex items-start sm:items-center justify-center bg-gray-50 p-4"
@@ -250,7 +301,7 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
             exit="exit"
             transition={{ duration: 0.5, ease: 'easeInOut' }}
           >
-            <StartScreen onModelFinalized={handleModelFinalized} />
+            <StartScreen onModelFinalized={handleModelGenerated} />
           </motion.div>
         ) : (
           <motion.div
@@ -286,25 +337,60 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
                   >
                     {isSheetCollapsed ? <ChevronUpIcon className="w-6 h-6 text-gray-500" /> : <ChevronDownIcon className="w-6 h-6 text-gray-500" />}
                   </button>
-                  <div className="p-4 md:p-6 pb-20 overflow-y-auto flex-grow flex flex-col gap-8">
-                    {error && (
-                      <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded-md" role="alert">
-                        <p className="font-bold">Error</p>
-                        <p>{error}</p>
-                      </div>
-                    )}
-                    <OutfitStack 
-                      outfitHistory={activeOutfitLayers}
-                      onRemoveLastGarment={handleRemoveLastGarment}
-                    />
-                    <WardrobePanel
-                      onGarmentSelect={handleGarmentSelect}
-                      onGarmentGenerated={handleGarmentGenerated}
-                      onRedesign={handleRedesign}
-                      activeGarmentIds={activeGarmentIds}
-                      isLoading={isLoading}
-                      wardrobe={wardrobe}
-                    />
+                  <div className="flex flex-col h-full overflow-hidden">
+                    <div className="flex-shrink-0 p-2 border-b border-gray-200/60">
+                        <div className="flex">
+                            <TabButton name="Wardrobe" active={activeTab === 'wardrobe'} onClick={() => setActiveTab('wardrobe')} />
+                            <TabButton name="Models" active={activeTab === 'models'} onClick={() => setActiveTab('models')} />
+                        </div>
+                    </div>
+                    <div className="p-4 md:p-6 pb-20 overflow-y-auto flex-grow">
+                        {error && (
+                        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded-md" role="alert">
+                            <p className="font-bold">Error</p>
+                            <p>{error}</p>
+                        </div>
+                        )}
+                        <AnimatePresence mode="wait">
+                            {activeTab === 'wardrobe' ? (
+                                <motion.div
+                                    key="wardrobe-content"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="flex flex-col gap-8"
+                                >
+                                    <OutfitStack 
+                                    outfitHistory={activeOutfitLayers}
+                                    onRemoveLastGarment={handleRemoveLastGarment}
+                                    />
+                                    <WardrobePanel
+                                    onGarmentSelect={handleGarmentSelect}
+                                    onGarmentGenerated={handleGarmentGenerated}
+                                    onRedesign={handleRedesign}
+                                    activeGarmentIds={activeGarmentIds}
+                                    isLoading={isLoading}
+                                    wardrobe={wardrobe}
+                                    />
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="models-content"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                >
+                                    <ModelPanel 
+                                        models={savedModels}
+                                        activeModelId={activeModelId}
+                                        onSelectModel={handleSelectModel}
+                                        onImportModel={handleImportModel}
+                                        isLoading={isLoading}
+                                    />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
                   </div>
               </aside>
             </main>

@@ -66,15 +66,34 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({ sessionKey, idea, 
 
   const currentVersion = designHistory.find(v => v.id === currentVersionId);
   
+  const handleSelectConcept = useCallback((imageUrl: string, prompt: string) => {
+    const newVersion: DesignVersion = {
+      id: `v${Date.now()}`,
+      imageUrl,
+      prompt,
+      parentId: null,
+    };
+    setHistoryState({
+        designHistory: [newVersion],
+        historyStack: [newVersion.id],
+        historyIndex: 0,
+    });
+    setInitialConcepts([]);
+  }, []);
+
   const generateInitialConcepts = useCallback(async () => {
     if (!finalPrompt) return;
     setIsLoading(true);
-    setLoadingMessage('Generating initial concepts...');
+    setLoadingMessage('Generating your design...');
     setError(null);
     setAiFeedback('');
     try {
       const imageDataUrls = await generateInitialImages(finalPrompt, negativePrompt);
-      setInitialConcepts(imageDataUrls);
+      if (imageDataUrls && imageDataUrls.length > 0) {
+        handleSelectConcept(imageDataUrls[0], `${idea?.title || 'Initial Concept'}`);
+      } else {
+        throw new Error('The AI failed to generate an image.');
+      }
     } catch (err) {
       setError({
           message: err instanceof Error ? err.message : 'An unknown error occurred.',
@@ -84,7 +103,7 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({ sessionKey, idea, 
     } finally {
       setIsLoading(false);
     }
-  }, [finalPrompt, negativePrompt]);
+  }, [finalPrompt, negativePrompt, idea, handleSelectConcept]);
 
   useEffect(() => {
     if (designHistory.length === 0 && !isLoading) {
@@ -107,21 +126,6 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({ sessionKey, idea, 
     }
   }, [designHistory.length, isLoading, initialImageUrl, finalPrompt, generateInitialConcepts]);
   
-  const handleSelectConcept = (imageUrl: string, prompt: string) => {
-    const newVersion: DesignVersion = {
-      id: `v${Date.now()}`,
-      imageUrl,
-      prompt,
-      parentId: null,
-    };
-    setHistoryState({
-        designHistory: [newVersion],
-        historyStack: [newVersion.id],
-        historyIndex: 0,
-    });
-    setInitialConcepts([]);
-  };
-
   const updateHistory = (newVersion: DesignVersion) => {
       setHistoryState(prev => {
           const newHistoryStack = prev.historyStack.slice(0, prev.historyIndex + 1);
@@ -233,8 +237,8 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({ sessionKey, idea, 
     if (designHistory.length === 0) {
       return (
         <div className="text-center w-full max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-white mb-4">Choose Your Starting Point</h2>
-          <p className="text-gray-400 mb-8">Select one of the initial AI-generated concepts to begin refining.</p>
+          <h2 className="text-3xl font-bold text-white mb-4">Visualizing Your Idea</h2>
+          <p className="text-gray-400 mb-8">The AI is creating your initial design. Please wait a moment.</p>
           {isLoading ? (
             <div>
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto"></div>
