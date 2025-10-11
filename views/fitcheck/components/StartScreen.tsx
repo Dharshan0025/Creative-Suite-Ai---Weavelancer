@@ -1,91 +1,142 @@
 import React, { useState, useCallback } from 'react';
 import { generateModelImage } from '../../../services/geminiService';
 import Spinner from '../../../components/Spinner';
+import { STOCK_MODELS } from '../../../constants';
+import type { Model } from '../../../types';
 
 interface StartScreenProps {
   onModelFinalized: (url: string, sourceFile: File) => void;
 }
 
-export const StartScreen: React.FC<StartScreenProps> = ({ onModelFinalized }) => {
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
+    <button
+        onClick={onClick}
+        className={`px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 transition-colors ${
+            active ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-800'
+        }`}
+    >
+        {children}
+    </button>
+);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setError(null);
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+const UploaderView: React.FC<{ onModelFinalized: StartScreenProps['onModelFinalized'] }> = ({ onModelFinalized }) => {
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = useCallback(async () => {
-    if (!imageFile) {
-      setError('Please select an image file first.');
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-    try {
-      const modelImageUrl = await generateModelImage(imageFile);
-      onModelFinalized(modelImageUrl, imageFile);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [imageFile, onModelFinalized]);
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setError(null);
+            setImageFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreviewUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
-  if (isLoading) {
+    const handleSubmit = useCallback(async () => {
+        if (!imageFile) {
+            setError('Please select an image file first.');
+            return;
+        }
+        setIsLoading(true);
+        setError(null);
+        try {
+            const modelImageUrl = await generateModelImage(imageFile);
+            onModelFinalized(modelImageUrl, imageFile);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [imageFile, onModelFinalized]);
+
+    if (isLoading) {
+        return (
+          <div className="text-center p-8 w-full">
+            <Spinner />
+            <p className="text-lg font-serif text-gray-700 mt-6">Creating your model...</p>
+            <p className="text-sm text-gray-500 mt-2">This may take a minute. The AI is preparing a professional shot for your try-on session.</p>
+          </div>
+        );
+    }
+    
     return (
-      <div className="text-center p-8 w-full max-w-md">
-        <Spinner />
-        <p className="text-lg font-serif text-gray-700 mt-6">Creating your model...</p>
-        <p className="text-sm text-gray-500 mt-2">This may take a minute. The AI is preparing a professional shot for your try-on session.</p>
-      </div>
+        <div className="w-full">
+            <label
+              htmlFor="file-upload"
+              className="relative block w-full h-64 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-500 transition-colors"
+            >
+              {previewUrl ? (
+                <img src={previewUrl} alt="Preview" className="w-full h-full object-contain rounded-lg" />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  <p className="mt-2 text-sm">Click to upload an image</p>
+                </div>
+              )}
+              <input id="file-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+            </label>
+            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+            <div className="mt-6">
+                <button
+                  onClick={handleSubmit}
+                  disabled={!imageFile || isLoading}
+                  className="w-full bg-gray-900 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 ease-in-out hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Generating...' : 'Generate Model'}
+                </button>
+            </div>
+        </div>
     );
-  }
+};
+
+const StockModelView: React.FC<{ onModelFinalized: StartScreenProps['onModelFinalized'] }> = ({ onModelFinalized }) => {
+    const handleSelect = (model: Model) => {
+        // We bypass the generation step and finalize directly with the stock image URL.
+        // We create a "fake" file object to satisfy the function signature.
+        const fakeFile = new File([], model.name, { type: "image/png" });
+        onModelFinalized(model.url, fakeFile);
+    };
+
+    return (
+        <div className="w-full">
+            <div className="grid grid-cols-2 gap-4">
+                {STOCK_MODELS.map(model => (
+                    <div key={model.id} onClick={() => handleSelect(model)} className="cursor-pointer group">
+                        <div className="aspect-[3/4] bg-gray-200 rounded-lg overflow-hidden border-2 border-transparent group-hover:border-indigo-500 transition-all">
+                            <img src={model.url} alt={model.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                        </div>
+                        <p className="text-center text-sm mt-2 text-gray-600 font-medium">{model.name}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+
+export const StartScreen: React.FC<StartScreenProps> = ({ onModelFinalized }) => {
+  const [activeTab, setActiveTab] = useState<'upload' | 'stock'>('stock');
 
   return (
-    <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-lg animate-fade-in">
+    <div className="w-full max-w-lg p-8 bg-white rounded-2xl shadow-lg animate-fade-in">
       <div className="text-center">
         <h1 className="text-2xl font-bold font-serif tracking-wide text-gray-800">Create Your Model</h1>
-        <p className="text-gray-500 mt-2">Upload a full-body photo to begin.</p>
+        <p className="text-gray-500 mt-2">Choose a stock model or upload your own full-body photo.</p>
       </div>
       
-      <div className="mt-6">
-        <label
-          htmlFor="file-upload"
-          className="relative block w-full h-64 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-500 transition-colors"
-        >
-          {previewUrl ? (
-            <img src={previewUrl} alt="Preview" className="w-full h-full object-contain rounded-lg" />
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              <p className="mt-2 text-sm">Click to upload an image</p>
-            </div>
-          )}
-          <input id="file-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-        </label>
+      <div className="mt-6 border-b border-gray-200 flex justify-center">
+        <TabButton active={activeTab === 'stock'} onClick={() => setActiveTab('stock')}>Use Stock Model</TabButton>
+        <TabButton active={activeTab === 'upload'} onClick={() => setActiveTab('upload')}>Upload Photo</TabButton>
       </div>
 
-      {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-      
       <div className="mt-6">
-        <button
-          onClick={handleSubmit}
-          disabled={!imageFile || isLoading}
-          className="w-full bg-gray-900 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 ease-in-out hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-        >
-          {isLoading ? 'Generating...' : 'Generate Model'}
-        </button>
+        {activeTab === 'upload' ? <UploaderView onModelFinalized={onModelFinalized} /> : <StockModelView onModelFinalized={onModelFinalized} />}
       </div>
     </div>
   );

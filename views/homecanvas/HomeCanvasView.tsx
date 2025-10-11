@@ -7,6 +7,7 @@ import { ObjectCard } from './components/ObjectCard';
 import Spinner from '../../components/Spinner';
 import { DebugModal } from './components/DebugModal';
 import { TouchGhost } from './components/TouchGhost';
+import { ChevronLeftIcon } from '../../components/icons';
 
 const dataURLtoFile = async (dataurl: string, filename: string): Promise<File> => {
     const res = await fetch(dataurl);
@@ -26,9 +27,10 @@ const loadingMessages = [
 interface HomeCanvasViewProps {
     designImageUrl: string;
     onRequestRedesign: (imageUrl: string, onComplete: (newImageUrl: string) => void) => void;
+    onBack?: () => void;
 }
 
-export const HomeCanvasView: React.FC<HomeCanvasViewProps> = ({ designImageUrl, onRequestRedesign }) => {
+export const HomeCanvasView: React.FC<HomeCanvasViewProps> = ({ designImageUrl, onRequestRedesign, onBack }) => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [productImageFile, setProductImageFile] = useState<File | null>(null);
   const [sceneImage, setSceneImage] = useState<File | null>(null);
@@ -242,7 +244,17 @@ export const HomeCanvasView: React.FC<HomeCanvasViewProps> = ({ designImageUrl, 
             imageUrl={isTouchDragging && selectedProduct ? selectedProduct.imageUrl : null} 
             position={touchGhostPosition}
         />
-        <div className="text-center mb-8 px-4">
+        <div className="text-center mb-8 px-4 relative">
+             {onBack && (
+                 <button 
+                    onClick={onBack}
+                    className="absolute left-0 md:left-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-gray-500 hover:text-gray-800 transition-colors"
+                    aria-label="Go back"
+                 >
+                    <ChevronLeftIcon className="w-6 h-6" />
+                    <span className="hidden md:inline">Back</span>
+                 </button>
+             )}
              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight sm:text-5xl">
                 Home Canvas
              </h1>
@@ -284,6 +296,7 @@ export const HomeCanvasView: React.FC<HomeCanvasViewProps> = ({ designImageUrl, 
                   id="scene-uploader" 
                   onFileSelect={setSceneImage} 
                   imageUrl={sceneImageUrl}
+                  productName={selectedProduct?.name || 'scene'}
                   isDropZone={!!sceneImage && !isLoading}
                   onProductDrop={handleProductDrop}
                   persistedOrbPosition={persistedOrbPosition}

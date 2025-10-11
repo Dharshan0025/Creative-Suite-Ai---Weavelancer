@@ -85,6 +85,10 @@ const App: React.FC = () => {
       }
   };
 
+  const handleBackToChooser = () => {
+    setStage(Stage.CHOOSER);
+  };
+
   const handleSelectFitCheck = () => {
     setStage(Stage.FITCHECK);
   };
@@ -136,13 +140,13 @@ const App: React.FC = () => {
             handleStartOver();
             return null;
         }
-        return <FitCheckView idea={generatedIdea} designImageUrl={finalImageUrl} onRequestRedesign={handleRequestRedesign} />;
+        return <FitCheckView onBack={handleBackToChooser} idea={generatedIdea} designImageUrl={finalImageUrl} onRequestRedesign={handleRequestRedesign} />;
       case Stage.HOMECANVAS:
         if (!finalImageUrl) {
             handleStartOver();
             return null;
         }
-        return <HomeCanvasView designImageUrl={finalImageUrl} onRequestRedesign={handleRequestRedesign} />;
+        return <HomeCanvasView onBack={handleBackToChooser} designImageUrl={finalImageUrl} onRequestRedesign={handleRequestRedesign} />;
       default:
         return <IdeasparkView onIdeaGenerated={handleIdeaGenerated} />;
     }

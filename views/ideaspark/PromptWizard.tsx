@@ -12,7 +12,22 @@ interface PromptWizardProps {
 
 type Step = 1 | 2 | 3 | 4;
 
-const categories = ['Jewelry', 'Art', 'Clothing', 'Furniture', 'Accessory', 'Gadget'];
+const categories = [
+    'Accessory', 
+    'Art', 
+    'Bags', 
+    'Clothing', 
+    'Footwear', 
+    'Furniture', 
+    'Gadget', 
+    'Home Decor', 
+    'Jewelry', 
+    'Kitchenware', 
+    'Lighting', 
+    'Print', 
+    'Stationery', 
+    'Toy'
+];
 const styles = ['Minimalist', 'Vintage', 'Modern', 'Luxury', 'Eco-Friendly', 'Gothic', 'Cultural'];
 const materials = ['Wood', 'Metal', 'Fabric', 'Leather', 'Plastic', 'Glass', 'Stone'];
 

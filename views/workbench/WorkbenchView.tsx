@@ -31,17 +31,9 @@ interface HistoryState {
 }
 
 export const WorkbenchView: React.FC<WorkbenchViewProps> = ({ sessionKey, idea, finalPrompt, negativePrompt, initialImageUrl, onDesignFinalized, onBack }) => {
-  const [historyState, setHistoryState] = useState<HistoryState>(() => {
-      try {
-          const storedState = localStorage.getItem(`workbench-state-${sessionKey}`);
-          if (storedState) {
-              return JSON.parse(storedState);
-          }
-      } catch (e) {
-          console.error("Failed to parse stored state for workbench:", e);
-      }
-      return { designHistory: [], historyStack: [], historyIndex: -1 };
-  });
+  // Removed localStorage persistence to prevent quota errors.
+  // The state is now ephemeral and will reset on page refresh.
+  const [historyState, setHistoryState] = useState<HistoryState>({ designHistory: [], historyStack: [], historyIndex: -1 });
 
   const { designHistory, historyStack, historyIndex } = historyState;
 
@@ -52,13 +44,9 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({ sessionKey, idea, 
   const [aiFeedback, setAiFeedback] = useState<string>('');
   const [error, setError] = useState<AppError | null>(null);
   
-  useEffect(() => {
-    try {
-        localStorage.setItem(`workbench-state-${sessionKey}`, JSON.stringify(historyState));
-    } catch (e) {
-        console.error("Failed to save workbench state:", e);
-    }
-  }, [historyState, sessionKey]);
+  // NOTE: The useEffect hook that previously saved to localStorage has been removed
+  // to fix the "quota exceeded" error. A more robust persistence solution
+  // like IndexedDB would be needed for this feature.
 
   const currentVersionId = historyIndex >= 0 ? historyStack[historyIndex] : null;
   const canUndo = historyIndex > 0;
@@ -298,6 +286,7 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({ sessionKey, idea, 
                 onRedo={handleRedo}
                 canUndo={canUndo}
                 canRedo={canRedo}
+                currentVersion={currentVersion}
               />
               {error && <div className="bg-red-900/50 border border-red-500 text-red-300 p-3 rounded-md text-sm">{error.message}</div>}
               {aiFeedback && (

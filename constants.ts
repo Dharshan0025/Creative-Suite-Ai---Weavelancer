@@ -1,6 +1,37 @@
-import { InspirationCardData, Style } from './types';
+import { InspirationCardData, Style, Model } from './types';
 
 // --- Ideaspark Constants ---
+export const CATEGORIZED_EXAMPLE_PROMPTS = [
+  {
+    category: 'Furniture & Decor',
+    prompts: [
+      'a chair made of recycled plastic',
+      'minimalist wooden desk organizer',
+      'art deco inspired floor lamp',
+      'a modular, interlocking bookshelf',
+    ],
+  },
+  {
+    category: 'Apparel & Wearables',
+    prompts: [
+      'a silk bomber jacket with floral embroidery',
+      'high-top sneakers made from cork',
+      'a techwear-style waterproof poncho',
+      'a silver necklace with a moonstone pendant',
+    ],
+  },
+  {
+    category: 'Gadgets & Unique Items',
+    prompts: [
+      'a backpack with solar panels',
+      'a futuristic tea kettle',
+      'a steampunk mechanical keyboard',
+      'a self-watering vertical garden planter',
+    ],
+  },
+];
+
+
 export const INSPIRATION_DATA: InspirationCardData[] = [
   {
     id: 1,
@@ -59,4 +90,19 @@ export const POSE_INSTRUCTIONS = [
   "Jumping in the air, mid-action shot",
   "Walking towards camera",
   "Leaning against a wall",
+];
+
+export const STOCK_MODELS: Model[] = [
+    { id: 'stock-1', name: 'Female Model 1', url: 'https://i.ibb.co/9v0F73b/stock-model-female-1.png' },
+    { id: 'stock-2', name: 'Male Model 1', url: 'https://i.ibb.co/d26006M/stock-model-male-1.png' },
+    { id: 'stock-3', name: 'Female Model 2', url: 'https://i.ibb.co/yQW2Y3q/stock-model-female-2.png' },
+    { id: 'stock-4', name: 'Male Model 2', url: 'https://i.ibb.co/S68Gz7j/stock-model-male-2.png' },
+];
+
+// --- Home Canvas Constants ---
+export const STOCK_SCENES = [
+  { id: 'scene-1', name: 'Modern Living Room', url: 'https://i.ibb.co/685y6k8/stock-scene-living-room.jpg' },
+  { id: 'scene-2', name: 'Cozy Bedroom', url: 'https://i.ibb.co/wYxK2rP/stock-scene-bedroom.jpg' },
+  { id: 'scene-3', name: 'Outdoor Patio', url: 'https://i.ibb.co/F8zYqPj/stock-scene-patio.jpg' },
+  { id: 'scene-4', name: 'Minimalist Office', url: 'https://i.ibb.co/Y05M9Gj/stock-scene-office.jpg' },
 ];

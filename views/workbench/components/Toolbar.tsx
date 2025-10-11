@@ -1,7 +1,7 @@
 import React from 'react';
-import type { ActiveTool, Style } from '../../../types';
+import type { ActiveTool, Style, DesignVersion } from '../../../types';
 import { STYLES } from '../../../constants';
-import { MagicWandIcon, FeedbackIcon, RotateCcwIcon, RotateCwIcon } from '../../../components/icons';
+import { MagicWandIcon, FeedbackIcon, RotateCcwIcon, RotateCwIcon, DownloadIcon } from '../../../components/icons';
 
 interface ToolbarProps {
   activeTool: ActiveTool;
@@ -13,6 +13,7 @@ interface ToolbarProps {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  currentVersion: DesignVersion | undefined;
 }
 
 const ToolButton: React.FC<{ icon: React.ReactElement; label: string; isActive: boolean; onClick: () => void; disabled: boolean; }> = ({ icon, label, isActive, onClick, disabled }) => (
@@ -31,7 +32,19 @@ const ToolButton: React.FC<{ icon: React.ReactElement; label: string; isActive: 
 );
 
 
-export const Toolbar: React.FC<ToolbarProps> = ({ activeTool, onToolSelect, onStyleTransform, onGetAIFeedback, isActionable, onUndo, onRedo, canUndo, canRedo }) => {
+export const Toolbar: React.FC<ToolbarProps> = ({ activeTool, onToolSelect, onStyleTransform, onGetAIFeedback, isActionable, onUndo, onRedo, canUndo, canRedo, currentVersion }) => {
+  const handleDownload = () => {
+    if (!currentVersion) return;
+    const link = document.createElement('a');
+    link.href = currentVersion.imageUrl;
+    // Sanitize the prompt to create a valid filename
+    const fileName = `${currentVersion.prompt.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -91,6 +104,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({ activeTool, onToolSelect, onSt
               </div>
             </button>
           ))}
+        </div>
+      </div>
+      <div>
+        <h3 className="text-sm font-semibold text-gray-400 mb-2 px-1">Export</h3>
+        <div className="grid grid-cols-2 gap-2">
+          <ToolButton
+            label="Download"
+            icon={<DownloadIcon />}
+            isActive={false}
+            onClick={handleDownload}
+            disabled={!isActionable}
+          />
         </div>
       </div>
     </div>

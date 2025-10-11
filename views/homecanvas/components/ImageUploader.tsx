@@ -1,11 +1,13 @@
 import React, { useCallback, useRef, useState, useImperativeHandle, forwardRef, useEffect } from 'react';
-import { UploadIcon } from '../../../components/icons';
+import { UploadIcon, PlusIcon, DownloadIcon } from '../../../components/icons';
+import { STOCK_SCENES } from '../../../constants';
 
 interface ImageUploaderProps {
   id: string;
   label?: string;
   onFileSelect: (file: File) => void;
   imageUrl: string | null;
+  productName: string;
   isDropZone?: boolean;
   onProductDrop?: (position: {x: number, y: number}, relativePosition: { xPercent: number; yPercent: number; }) => void;
   persistedOrbPosition?: { x: number; y: number } | null;
@@ -22,7 +24,7 @@ const WarningIcon: React.FC = () => (
 );
 
 
-export const ImageUploader = forwardRef<HTMLImageElement, ImageUploaderProps>(({ id, label, onFileSelect, imageUrl, isDropZone = false, onProductDrop, persistedOrbPosition, showDebugButton, onDebugClick, isTouchHovering = false, touchOrbPosition = null }, ref) => {
+export const ImageUploader = forwardRef<HTMLImageElement, ImageUploaderProps>(({ id, label, onFileSelect, imageUrl, productName, isDropZone = false, onProductDrop, persistedOrbPosition, showDebugButton, onDebugClick, isTouchHovering = false, touchOrbPosition = null }, ref) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -92,7 +94,7 @@ export const ImageUploader = forwardRef<HTMLImageElement, ImageUploaderProps>(({
     if (isDropZone && onProductDrop) {
       handlePlacement(event.clientX, event.clientY, event.currentTarget);
     } else {
-      inputRef.current?.click();
+      // This part is no longer reachable for the initial state
     }
   };
   
@@ -135,15 +137,38 @@ export const ImageUploader = forwardRef<HTMLImageElement, ImageUploaderProps>(({
       }
   }, [isDropZone, onProductDrop, onFileSelect, handlePlacement]);
   
+  const handleStockSceneSelect = async (sceneUrl: string) => {
+    try {
+        const response = await fetch(sceneUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'stock-scene.jpg', { type: blob.type });
+        onFileSelect(file);
+    } catch (e) {
+        console.error("Failed to fetch stock scene:", e);
+        setFileTypeError("Could not load selected scene. Please try again.");
+    }
+  };
+  
+  const handleDownload = () => {
+    if (!imageUrl) return;
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    const fileName = `scene_with_${productName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const showHoverState = isDraggingOver || isTouchHovering;
   const currentOrbPosition = orbPosition || touchOrbPosition;
-  const isActionable = isDropZone || !imageUrl;
+  const isActionable = isDropZone;
 
-  const uploaderClasses = `w-full aspect-video bg-zinc-100 border-2 border-dashed rounded-lg flex items-center justify-center transition-all duration-300 relative overflow-hidden ${
+  const uploaderClasses = `w-full aspect-video bg-zinc-100 border-2 rounded-lg flex items-center justify-center transition-all duration-300 relative overflow-hidden group ${
       showHoverState ? 'border-blue-500 bg-blue-50'
-    : isDropZone ? 'border-zinc-400 cursor-crosshair'
-    : 'border-zinc-300 hover:border-blue-500 cursor-pointer'
-  } ${!isActionable ? 'cursor-default' : ''}`;
+    : isDropZone ? 'border-zinc-400 border-dashed cursor-crosshair'
+    : 'border-transparent' // No border when showing library
+  } ${!isActionable && !imageUrl ? '' : 'cursor-pointer'}`;
 
   return (
     <div className="flex flex-col items-center w-full">
@@ -192,6 +217,13 @@ export const ImageUploader = forwardRef<HTMLImageElement, ImageUploaderProps>(({
                     }}
                 />
             )}
+            <button 
+                onClick={handleDownload}
+                className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm p-2 rounded-full text-white hover:bg-black/80 transition-all z-20 shadow-lg"
+                aria-label="Download Scene"
+              >
+                <DownloadIcon className="w-5 h-5" />
+            </button>
             {showDebugButton && onDebugClick && (
                 <button
                     onClick={(e) => {
@@ -206,9 +238,22 @@ export const ImageUploader = forwardRef<HTMLImageElement, ImageUploaderProps>(({
             )}
           </>
         ) : (
-          <div className="text-center text-zinc-500 p-4">
-            <UploadIcon className="h-12 w-12 text-zinc-500 mx-auto mb-2" />
-            <p>Click to upload or drag & drop</p>
+          <div className="text-center text-zinc-500 p-4 w-full">
+            <p className="font-semibold mb-3">Select a Scene</p>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+                {STOCK_SCENES.map(scene => (
+                    <div key={scene.id} onClick={() => handleStockSceneSelect(scene.url)} className="aspect-video bg-zinc-200 rounded-md overflow-hidden group cursor-pointer border-2 border-transparent hover:border-blue-500">
+                        <img src={scene.url} alt={scene.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                    </div>
+                ))}
+            </div>
+            <button 
+                onClick={() => inputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800 p-2 rounded-md hover:bg-blue-50 transition-colors"
+            >
+                <UploadIcon className="h-5 w-5" />
+                Or upload your own
+            </button>
           </div>
         )}
       </div>

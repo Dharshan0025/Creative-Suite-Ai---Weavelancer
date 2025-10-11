@@ -6,7 +6,7 @@ import { WardrobePanel } from './components/WardrobeModal';
 import { OutfitStack } from './components/OutfitStack';
 import { generateModelImage, generateVirtualTryOnImage, generatePoseVariation, generateGarmentFromPrompt } from '../../services/geminiService';
 import { OutfitLayer, WardrobeItem, Model, GeneratedIdea } from '../../types';
-import { ChevronDownIcon, ChevronUpIcon } from '../../components/icons';
+import { ChevronDownIcon, ChevronUpIcon, ChevronLeftIcon } from '../../components/icons';
 import { POSE_INSTRUCTIONS } from '../../constants';
 import { useImageCache } from '../../hooks/useImageCache';
 import { ModelPanel } from './components/ModelPanel';
@@ -23,6 +23,7 @@ interface FitCheckViewProps {
     idea: GeneratedIdea | null;
     designImageUrl: string;
     onRequestRedesign: (imageUrl: string, onComplete: (newImageUrl: string) => void) => void;
+    onBack?: () => void;
 }
 
 const TabButton: React.FC<{ name: string; active: boolean; onClick: () => void; }> = ({ name, active, onClick }) => (
@@ -38,7 +39,7 @@ const TabButton: React.FC<{ name: string; active: boolean; onClick: () => void; 
     </button>
   );
 
-export const FitCheckView: React.FC<FitCheckViewProps> = ({ idea, designImageUrl, onRequestRedesign }) => {
+export const FitCheckView: React.FC<FitCheckViewProps> = ({ idea, designImageUrl, onRequestRedesign, onBack }) => {
   const [savedModels, setSavedModels] = useState<Model[]>([]);
   const [activeModelId, setActiveModelId] = useState<string | null>(null);
   const [outfitHistory, setOutfitHistory] = useState<OutfitLayer[]>([]);
@@ -78,13 +79,15 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ idea, designImageUrl
     [activeOutfitLayers]
   );
   
-  const displayImageUrl = useMemo(() => {
-    if (outfitHistory.length === 0) return modelImageUrl;
+  const { displayImageUrl, currentProductName } = useMemo(() => {
+    if (outfitHistory.length === 0) return { displayImageUrl: modelImageUrl, currentProductName: 'model' };
     const currentLayer = outfitHistory[currentOutfitIndex];
-    if (!currentLayer) return modelImageUrl;
+    if (!currentLayer) return { displayImageUrl: modelImageUrl, currentProductName: 'model' };
 
     const poseInstruction = POSE_INSTRUCTIONS[currentPoseIndex];
-    return currentLayer.poseImages[poseInstruction] ?? Object.values(currentLayer.poseImages)[0];
+    const imageUrl = currentLayer.poseImages[poseInstruction] ?? Object.values(currentLayer.poseImages)[0];
+    const productName = currentLayer.garment?.name || 'model';
+    return { displayImageUrl: imageUrl, currentProductName: productName };
   }, [outfitHistory, currentOutfitIndex, currentPoseIndex, modelImageUrl]);
   
   const handleModelGenerated = (url: string, sourceFile: File) => {
@@ -165,11 +168,12 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ idea, designImageUrl
         await handleGarmentSelect(garmentFile, newGarment);
 
     } catch(err) {
-        // Fix: Make error handling more robust to satisfy strict type checking for the `setError` state.
         const message = err instanceof Error ? err.message : "Failed to generate garment.";
         setError(message);
+        // Rethrow a proper error so the caller knows about the failure.
+        throw new Error(message);
+    } finally {
         setIsLoading(false);
-        throw err;
     }
   }, [handleGarmentSelect]);
 
@@ -223,7 +227,9 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ idea, designImageUrl
       });
       setCurrentPoseIndex(newIndex);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to change pose. Try another.');
+      // FIX: The 'err' variable from a catch block is of type 'unknown'. It must be converted to a string before being passed to setError, which expects a string.
+      const message = err instanceof Error ? err.message : 'Failed to change pose. Try another.';
+      setError(message);
       setCurrentPoseIndex(prevPoseIndex);
     } finally {
       setIsLoading(false);
@@ -288,7 +294,17 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ idea, designImageUrl
       exit="exit"
       transition={{ duration: 0.4, ease: 'easeInOut' }}
     >
-        <div className="text-center mb-8 px-4">
+        <div className="text-center mb-8 px-4 relative">
+             {onBack && (
+                 <button 
+                    onClick={onBack}
+                    className="absolute left-0 md:left-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-gray-500 hover:text-gray-800 transition-colors"
+                    aria-label="Go back"
+                 >
+                    <ChevronLeftIcon className="w-6 h-6" />
+                    <span className="hidden md:inline">Back</span>
+                 </button>
+             )}
              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight sm:text-5xl">
                 FitCheck Studio
              </h1>
@@ -323,6 +339,7 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ idea, designImageUrl
               <div className="w-full h-full flex-grow flex items-center justify-center bg-white relative">
                 <Canvas 
                   displayImageUrl={displayImageUrl}
+                  productName={currentProductName}
                   isLoading={isLoading}
                   loadingMessage={loadingMessage}
                   onSelectPose={handlePoseSelect}

@@ -40,7 +40,7 @@ const ideaResponseSchema = {
     },
     category: {
       type: Type.STRING,
-      description: 'The single best category for this product from the following list: Jewelry, Art, Clothing, Furniture, Accessory, Gadget.'
+      description: 'The single best category for this product from the following list: Accessory, Art, Bags, Clothing, Footwear, Furniture, Gadget, Home Decor, Jewelry, Kitchenware, Lighting, Print, Stationery, Toy.'
     }
   },
   required: ['title', 'concept', 'keyFeatures', 'styleAndAesthetics', 'suggestedMaterials', 'targetAudience', 'category']

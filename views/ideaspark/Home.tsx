@@ -4,6 +4,7 @@ import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { generateIdeaFromPrompt } from '../../services/geminiService';
 import { GeneratedIdea, ImageFile, AppError } from '../../types';
 import { ErrorDisplay } from '../../components/ErrorDisplay';
+import { CATEGORIZED_EXAMPLE_PROMPTS } from '../../constants';
 
 interface HomeProps {
     onIdeaGenerated: (idea: GeneratedIdea) => void;
@@ -124,6 +125,26 @@ export const Home: React.FC<HomeProps> = ({ onIdeaGenerated, isLoading, setIsLoa
                         )}
                     </div>
                 </div>
+                
+                <div className="mt-4 space-y-3">
+                  <p className="text-xs text-gray-500">Or try an example:</p>
+                  {CATEGORIZED_EXAMPLE_PROMPTS.map(categoryItem => (
+                    <div key={categoryItem.category}>
+                        <h3 className="text-sm font-semibold text-gray-800 mb-2">{categoryItem.category}</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {categoryItem.prompts.map(p => (
+                            <button 
+                                key={p}
+                                onClick={() => setPrompt(p)}
+                                className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm hover:bg-indigo-100 hover:text-indigo-700 transition-colors"
+                            >
+                                {p}
+                            </button>
+                            ))}
+                        </div>
+                    </div>
+                  ))}
+                </div>
 
                 {imageFile && (
                     <div className="mt-4 p-3 bg-gray-100 rounded-lg flex items-center justify-between">
@@ -140,7 +161,7 @@ export const Home: React.FC<HomeProps> = ({ onIdeaGenerated, isLoading, setIsLoa
                     </p>
                 )}
 
-                <div className="mt-4 flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
+                <div className="mt-6 flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
                     <button onClick={clearInput} className="text-sm text-gray-500 hover:text-gray-800">Clear</button>
                     <button onClick={handleGenerate} disabled={isLoading} className="w-full sm:w-auto px-8 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors duration-300 flex items-center justify-center shadow-lg disabled:bg-indigo-300 disabled:cursor-not-allowed">
                         <SparklesIcon className="mr-2 h-5 w-5" />
