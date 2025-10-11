@@ -5,7 +5,7 @@ import { Canvas } from './components/Canvas';
 import { WardrobePanel } from './components/WardrobeModal';
 import { OutfitStack } from './components/OutfitStack';
 import { generateModelImage, generateVirtualTryOnImage, generatePoseVariation, generateGarmentFromPrompt } from '../../services/geminiService';
-import { OutfitLayer, WardrobeItem, Model } from '../../types';
+import { OutfitLayer, WardrobeItem, Model, GeneratedIdea } from '../../types';
 import { ChevronDownIcon, ChevronUpIcon } from '../../components/icons';
 import { POSE_INSTRUCTIONS } from '../../constants';
 import { useImageCache } from '../../hooks/useImageCache';
@@ -20,6 +20,7 @@ const dataURLtoFile = async (dataurl: string, filename: string): Promise<File> =
 
 
 interface FitCheckViewProps {
+    idea: GeneratedIdea | null;
     designImageUrl: string;
     onRequestRedesign: (imageUrl: string, onComplete: (newImageUrl: string) => void) => void;
 }
@@ -37,7 +38,7 @@ const TabButton: React.FC<{ name: string; active: boolean; onClick: () => void; 
     </button>
   );
 
-export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRequestRedesign }) => {
+export const FitCheckView: React.FC<FitCheckViewProps> = ({ idea, designImageUrl, onRequestRedesign }) => {
   const [savedModels, setSavedModels] = useState<Model[]>([]);
   const [activeModelId, setActiveModelId] = useState<string | null>(null);
   const [outfitHistory, setOutfitHistory] = useState<OutfitLayer[]>([]);
@@ -51,14 +52,16 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
   
   const imageCache = useImageCache();
   
-  const [wardrobe, setWardrobe] = useState<WardrobeItem[]>(() => [
-    {
+  const [wardrobe, setWardrobe] = useState<WardrobeItem[]>(() => {
+    if (!idea) return [];
+    return [{
       id: 'generated-design',
       name: 'Your Generated Design',
-      type: 'top',
+      type: 'top', // This is for layering, can be refined
+      category: idea.category,
       url: designImageUrl,
-    },
-  ]);
+    }];
+  });
 
   const modelImageUrl = useMemo(() => {
     if (!activeModelId) return null;
@@ -117,7 +120,7 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
     setLoadingMessage(`Adding ${garmentInfo.name}...`);
 
     try {
-      const newImageUrl = await generateVirtualTryOnImage(displayImageUrl, garmentFile);
+      const newImageUrl = await generateVirtualTryOnImage(displayImageUrl, garmentFile, garmentInfo.category);
       const currentPoseInstruction = POSE_INSTRUCTIONS[0];
       setCurrentPoseIndex(0);
       
@@ -153,6 +156,8 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
             id: `ai-${Date.now()}`,
             name: prompt,
             type: 'top',
+            // Defaulting category for now, could be improved with a category selection UI
+            category: 'Clothing', 
             url: garmentImageUrl,
         };
         const garmentFile = await dataURLtoFile(garmentImageUrl, `${prompt.replace(/\s+/g, '-')}.png`);
@@ -160,6 +165,7 @@ export const FitCheckView: React.FC<FitCheckViewProps> = ({ designImageUrl, onRe
         await handleGarmentSelect(garmentFile, newGarment);
 
     } catch(err) {
+        // Fix: Make error handling more robust to satisfy strict type checking for the `setError` state.
         const message = err instanceof Error ? err.message : "Failed to generate garment.";
         setError(message);
         setIsLoading(false);

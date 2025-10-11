@@ -37,9 +37,13 @@ const ideaResponseSchema = {
     targetAudience: {
       type: Type.STRING,
       description: 'Who this product would be perfect for.'
+    },
+    category: {
+      type: Type.STRING,
+      description: 'The single best category for this product from the following list: Jewelry, Art, Clothing, Furniture, Accessory, Gadget.'
     }
   },
-  required: ['title', 'concept', 'keyFeatures', 'styleAndAesthetics', 'suggestedMaterials', 'targetAudience']
+  required: ['title', 'concept', 'keyFeatures', 'styleAndAesthetics', 'suggestedMaterials', 'targetAudience', 'category']
 };
 
 export async function generateIdeaFromPrompt(prompt: string, image?: ImageFile | null) {
@@ -127,7 +131,7 @@ export const editImageWithMask = async (baseImageUrl: string, maskDataUrl: strin
     const textPart = { text: systemPrompt };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image-preview',
+      model: 'gemini-2.5-flash-image',
       contents: { parts: [imagePart, maskPart, textPart] },
       config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
     });
@@ -145,7 +149,7 @@ export const applyStyleToImage = async (baseImageUrl: string, stylePrompt: strin
     const textPart = { text: `You are a master artist. Your task is to reinterpret the given image in a new artistic style, as described here: "${stylePrompt}". It is crucial that the core subject matter, composition, and key elements of the original image are preserved. Return only the new, stylized image.` };
 
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
+        model: 'gemini-2.5-flash-image',
         contents: { parts: [imagePart, textPart] },
         config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
     });
@@ -174,7 +178,7 @@ export const generateImageViewFromAngle = async (baseImageUrl: string, angle: st
     const textPart = { text: `You are an expert 3D product visualizer. Your task is to regenerate the provided product image from a new camera angle. The new angle should be: "${angle}". **Crucial Rules:** 1. **Preserve Product:** The product's design, materials, and details must remain identical. 2. **Preserve Environment:** The clean, neutral studio background and lighting must be perfectly preserved. 3. **Change Angle Only:** The only change should be the camera's perspective on the object. Do not add, remove, or change any elements. 4. **Output:** Return ONLY the newly rendered image.` };
     
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
+        model: 'gemini-2.5-flash-image',
         contents: { parts: [imagePart, textPart] },
         config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
     });
@@ -222,19 +226,30 @@ export const generateModelImage = async (userImage: File): Promise<string> => {
     const userImagePart = await fileToPart(userImage);
     const prompt = "You are an expert fashion photographer AI. Transform the person in this image into a photorealistic, full-body fashion model photo for an e-commerce website. **Crucial Rules:** 1. **Background:** Change the background to a clean, neutral studio backdrop (light gray, #f0f0f0) with soft, even lighting and no harsh shadows. 2. **Pose:** Adjust the person's pose to a standard, relaxed standing model pose. 3. **Preserve Identity:** It is absolutely essential to preserve the person's identity, including all facial features, hair, skin tone, and body type. DO NOT alter their face or body proportions. The goal is a realistic photo of the same person in a different context. 4. **Output:** Return ONLY the final image.";
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
+        model: 'gemini-2.5-flash-image',
         contents: { parts: [userImagePart, { text: prompt }] },
         config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
     });
     return handleApiResponse(response);
 };
 
-export const generateVirtualTryOnImage = async (modelImageUrl: string, garmentImage: File): Promise<string> => {
+export const generateVirtualTryOnImage = async (modelImageUrl: string, garmentImage: File, category: string): Promise<string> => {
     const modelImagePart = dataUrlToGenerativePart(modelImageUrl);
     const garmentImagePart = await fileToPart(garmentImage);
-    const prompt = `You are an expert virtual try-on AI. You will be given a 'model image' and a 'garment image'. Your task is to create a new photorealistic image where the person from the 'model image' is wearing the clothing from the 'garment image'. **Crucial Rules:** 1. **Complete Garment Replacement:** You MUST completely REMOVE and REPLACE the clothing item worn by the person in the 'model image' with the new garment. 2. **Preserve the Model:** The person's face, hair, body shape, and pose from the 'model image' MUST remain unchanged. 3. **Preserve the Background:** The entire background from the 'model image' MUST be preserved perfectly. 4. **Apply the Garment:** Realistically fit the new garment onto the person. Pay close attention to fabric drape, shadows, and how the garment naturally conforms to the person's body and pose. 5. **Output:** Return ONLY the final, edited image.`;
+    
+    const lowerCaseCategory = category.toLowerCase();
+    const isAccessory = lowerCaseCategory.includes('jewelry') || lowerCaseCategory.includes('accessory');
+
+    let prompt: string;
+
+    if (isAccessory) {
+        prompt = `You are an expert virtual try-on AI for accessories. You will be given a 'model image' and an 'item image' (which is a piece of jewelry or an accessory). Your task is to realistically **place** this item onto the person in the 'model image'. **Crucial Rules:** 1. **DO NOT CHANGE CLOTHING:** The person's existing clothing MUST remain completely unchanged. 2. **ACCURATE PLACEMENT:** Intelligently identify the correct location for the item. For example, place earrings on the earlobes, necklaces around the neck, hats on the head, glasses on the face. 3. **PRESERVE THE MODEL:** The person's face, hair, body, and pose MUST remain unchanged. 4. **REALISTIC COMPOSITION:** Pay close attention to scale, perspective, lighting, and how the item would naturally sit or hang. Add realistic shadows or reflections where appropriate. 5. **Output:** Return ONLY the final, edited image.`;
+    } else { // Default to clothing
+        prompt = `You are an expert virtual try-on AI for clothing. You will be given a 'model image' and a 'garment image'. Your task is to create a new photorealistic image where the person from the 'model image' is wearing the clothing from the 'garment image'. **Crucial Rules:** 1. **COMPLETE GARMENT REPLACEMENT:** You MUST completely REMOVE and REPLACE the corresponding clothing item worn by the person in the 'model image' with the new garment. 2. **PRESERVE THE MODEL:** The person's face, hair, body shape, and pose from the 'model image' MUST remain unchanged. 3. **PRESERVE THE BACKGROUND:** The entire background from the 'model image' MUST be preserved perfectly. 4. **APPLY THE GARMENT:** Realistically fit the new garment onto the person. Pay close attention to fabric drape, shadows, and how the garment naturally conforms to the person's body and pose. 5. **Output:** Return ONLY the final, edited image.`;
+    }
+
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
+        model: 'gemini-2.5-flash-image',
         contents: { parts: [modelImagePart, garmentImagePart, { text: prompt }] },
         config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
     });
@@ -245,7 +260,7 @@ export const generatePoseVariation = async (tryOnImageUrl: string, poseInstructi
     const tryOnImagePart = dataUrlToGenerativePart(tryOnImageUrl);
     const prompt = `You are a master fashion photographer AI. Your task is to reshoot the provided image of a person from a new camera angle. **New Pose/Angle Instruction:** "${poseInstruction}". **Strict Rules to Follow:** 1. **Identity Preservation:** The person's facial features, hair, skin tone, and body type must remain identical to the original image. 2. **Clothing Consistency:** The clothing worn by the person, including its fit, texture, and color, must be perfectly preserved. 3. **Background Consistency:** The background environment and lighting must be identical to the original image. 4. **Only Change Pose:** The only modification is the person's pose and the camera's viewpoint to match the instruction. 5. **Output:** Return ONLY the final image, with no text or other artifacts.`;
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
+        model: 'gemini-2.5-flash-image',
         contents: { parts: [tryOnImagePart, { text: prompt }] },
         config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
     });
@@ -370,7 +385,7 @@ export const generateCompositeImage = async (objectImage: File, objectDescriptio
   const finalPrompt = `**Role:** You are a photorealistic composition expert. Your task is to take a 'product' image and seamlessly integrate it into a 'scene' image, adjusting for perspective, lighting, and scale to create a photorealistic composite. **Specifications:** - **Product to add:** The first image provided. Ignore any black padding around it; focus on the object itself. - **Scene to use:** The second image provided. This is the environment for the product. - **Placement Instruction (Crucial):** You must place the product at this exact location within the scene: "${semanticLocationDescription}". - **Final Image Requirements:** The output must match the scene's style, lighting, shadows, and perspective. Re-render the product to fit naturally. Scale it appropriately and cast realistic shadows. If the surface is reflective (e.g., glass, polished metal), add a subtle, realistic reflection of the product. The output should ONLY be the final, composed image.`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image-preview',
+    model: 'gemini-2.5-flash-image',
     contents: { parts: [objectImagePart, cleanEnvironmentImagePart, { text: finalPrompt }] },
     config: { responseModalities: [Modality.IMAGE, Modality.TEXT] }
   });

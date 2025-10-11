@@ -38,6 +38,8 @@ export const WardrobePanel: React.FC<WardrobePanelProps> = ({ onGarmentSelect, o
               id: `custom-${Date.now()}`,
               name: file.name,
               type: 'top', // default type for custom uploads
+              // Fix: Added missing 'category' property with a default value.
+              category: 'Clothing',
               url: URL.createObjectURL(file), // create a temporary URL for preview
           };
           onGarmentSelect(file, newItem);

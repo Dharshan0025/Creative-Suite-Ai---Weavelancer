@@ -27,6 +27,7 @@ export interface GeneratedIdea {
   styleAndAesthetics: string;
   suggestedMaterials: string[];
   targetAudience: string;
+  category: string;
 }
 
 export interface ImageFile {
@@ -63,6 +64,7 @@ export interface WardrobeItem {
   id: string;
   name: string;
   type: 'top' | 'bottom' | 'outerwear' | 'accessory' | 'shoes';
+  category: string;
   url: string;
 }
 

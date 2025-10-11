@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { SparklesIcon } from '../../components/icons';
-// FIX: Import AppError type to match the parent component's state.
 import { GeneratedIdea, AppError } from '../../types';
 import { generateIdeaFromPrompt } from '../../services/geminiService';
 
 interface PromptWizardProps {
   onIdeaGenerated: (idea: GeneratedIdea) => void;
   setIsLoading: (loading: boolean) => void;
-  // FIX: Changed setError prop type from (error: string | null) => void to (error: AppError | null) => void.
   setError: (error: AppError | null) => void;
   setHomeView: () => void;
 }
@@ -66,7 +64,6 @@ export const PromptWizard: React.FC<PromptWizardProps> = ({ onIdeaGenerated, set
       const idea = await generateIdeaFromPrompt(prompt, null);
       onIdeaGenerated(idea);
     } catch (err: any) {
-      // FIX: Pass an AppError object to setError, not just a string. This includes a retry handler for consistency.
       setError({ message: err.message, onRetry: handleGenerate });
     } finally {
       setIsLoading(false);

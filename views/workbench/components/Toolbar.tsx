@@ -15,7 +15,6 @@ interface ToolbarProps {
   canRedo: boolean;
 }
 
-// FIX: Replaced JSX.Element with React.ReactElement to resolve the 'Cannot find namespace JSX' error.
 const ToolButton: React.FC<{ icon: React.ReactElement; label: string; isActive: boolean; onClick: () => void; disabled: boolean; }> = ({ icon, label, isActive, onClick, disabled }) => (
   <button
     onClick={onClick}

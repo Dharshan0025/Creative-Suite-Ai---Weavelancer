@@ -71,7 +71,8 @@ const App: React.FC = () => {
   };
   
   const handleRequestRedesign = (imageUrl: string, onComplete: (newImageUrl: string) => void) => {
-    setWorkbenchSource(stage); // Store where we came from
+    setStage(stage); // Store where we came from
+    setWorkbenchSource(stage);
     setRedesignInput({ imageUrl, onComplete });
     setStage(Stage.WORKBENCH);
   };
@@ -131,11 +132,11 @@ const App: React.FC = () => {
         }
         return <ChooserScreen finalImageUrl={finalImageUrl} onSelectFitCheck={handleSelectFitCheck} onSelectHomeCanvas={handleSelectHomeCanvas} />;
       case Stage.FITCHECK:
-        if (!finalImageUrl) {
+        if (!finalImageUrl || !generatedIdea) {
             handleStartOver();
             return null;
         }
-        return <FitCheckView designImageUrl={finalImageUrl} onRequestRedesign={handleRequestRedesign} />;
+        return <FitCheckView idea={generatedIdea} designImageUrl={finalImageUrl} onRequestRedesign={handleRequestRedesign} />;
       case Stage.HOMECANVAS:
         if (!finalImageUrl) {
             handleStartOver();
